@@ -27,6 +27,29 @@ pip install -r requirements.txt
 python3 import_statements.py ~/Pfad/zum/Ordner -o transactions.json
 ```
 
+### Ordnerstruktur (empfohlen)
+
+Leg pro Konto einen Unterordner an. Am Ordnernamen erkennt der Importer, wie der Auszug zu lesen ist:
+
+```
+Finanzen/
+├── Postbank/         Kontoauszüge als PDF
+├── easybank/         Kreditkartenabrechnungen als PDF
+├── Trade Republic/   Kontoauszüge (Umsatzübersicht) als PDF
+└── PayPal/           Screenshots aus der PayPal-App (oder CSV-Export)
+```
+
+| Quelle | Besonderheit, die der Importer berücksichtigt |
+|---|---|
+| Postbank | Datum `02.03./02.03.`, Beträge `- 64,00` / `+ 2.500,00` |
+| easybank Kreditkarte | Käufe meist ohne Vorzeichen → werden als Ausgabe gezählt, Gutschriften als Einnahme |
+| Trade Republic | Datum `01 Okt. 2024`, Eingang/Ausgang ohne Vorzeichen → Richtung aus der Saldo-Änderung |
+| PayPal-Screenshots | Datum `2. Mai` ohne Jahr → Jahr aus dem Datum des Screenshots; Bankgutschriften werden übersprungen |
+
+**Umbuchungen zwischen deinen Konten** (Postbank → PayPal, Postbank → Trade Republic,
+Kreditkartenabrechnung) bekommen die Kategorie *Umbuchung* und zählen nicht doppelt.
+Damit das stimmt, sollten die PayPal-Screenshots den gleichen Zeitraum abdecken wie die Bankauszüge.
+
 Ausgabe pro Datei, z. B.:
 
 ```
@@ -39,7 +62,7 @@ Zusätzlich entsteht `transactions.csv` (Excel/Numbers) zum Prüfen.
 
 ### Tipps
 
-- **PayPal:** Statt Screenshots lieber den offiziellen Export nehmen:
+- **PayPal:** Screenshots funktionieren. Genauer ist aber der offizielle Export:
   paypal.com → *Aktivitäten* → *Kontoauszüge* → *Benutzerdefiniert* → **CSV**.
   Das ist exakt und braucht keine Texterkennung.
 - **Doppelte Buchungen:** Ein Umsatz, der als PDF *und* als Screenshot vorliegt, wird nur einmal gezählt.

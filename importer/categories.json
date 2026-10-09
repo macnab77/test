@@ -1,6 +1,6 @@
 {
-  "Umbuchung": ["paypal", "eigenübertrag", "übertrag auf", "umbuchung"],
-  "Gehalt & Einnahmen": ["gehalt", "lohn", "bezüge", "rente", "kindergeld", "erstattung", "zinsen", "dividende"],
+  "Umbuchung": ["paypal", "trade republic", "easybank", "postbank", "kreditkartenabrechnung", "kreditkarte abrechnung", "kartenabrechnung", "eigenübertrag", "umbuchung", "zahlungseingang - danke", "zahlung danke", "abbuchung vom girokonto"],
+  "Gehalt & Einnahmen": ["gehalt", "lohn", "bezüge", "rente", "kindergeld", "erstattung", "zinsen", "dividende", "zinszahlung", "verkauf"],
   "Wohnen": ["miete", "hausverwaltung", "nebenkosten", "wohnungsbau", "hausgeld"],
   "Energie & Internet": ["stadtwerke", "strom", "gas ", "vattenfall", "e.on", "enbw", "telekom", "vodafone", "o2 ", "1&1", "telefonica", "congstar"],
   "Lebensmittel": ["rewe", "edeka", "aldi", "lidl", "netto", "penny", "kaufland", "real ", "tegut", "bäckerei", "baeckerei", "denns", "alnatura", "globus"],
@@ -12,6 +12,6 @@
   "Shopping": ["amazon", "zalando", "otto", "ebay", "ikea", "mediamarkt", "saturn", "h&m", "about you", "temu", "shein", "decathlon"],
   "Gesundheit": ["apotheke", "arzt", "zahnarzt", "praxis", "klinik", "fitness", "mcfit", "urban sports"],
   "Bargeld": ["geldautomat", "bargeldauszahlung", "auszahlung atm", "gaa "],
-  "Sparen & Investieren": ["sparplan", "trade republic", "scalable", "comdirect depot", "tagesgeld", "wertpapier"],
+  "Sparen & Investieren": ["sparplan", "savings plan", "handel", "wertpapier", "scalable", "depot", "tagesgeld", "saveback"],
   "Steuern & Gebühren": ["finanzamt", "rundfunk", "kontoführung", "entgelt", "gebühr"]
 }

@@ -19,12 +19,26 @@ import argparse
 import csv
 import json
 import sys
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from parse import (  # noqa: E402
-    Transaction, categorize, dedupe, parse_paypal_csv, parse_statement_text,
+    Transaction, categorize, dedupe, parse_paypal_csv, parse_paypal_screenshot,
+    parse_statement_text,
+)
+
+# Erkennung über Ordner-/Dateinamen (zuverlässig) oder Dokumenttext (Fallback).
+# (Kennwort, Kontoname, Profil)
+SOURCES = (
+    ("paypal", "PayPal", "paypal"),
+    ("trade republic", "Trade Republic", "traderepublic"),
+    ("traderepublic", "Trade Republic", "traderepublic"),
+    ("trade_republic", "Trade Republic", "traderepublic"),
+    ("easybank", "easybank Kreditkarte", "creditcard"),
+    ("postbank", "Postbank", "bank"),
+    ("bank99", "bank99", "bank"),
+    ("kreditkarte", "Kreditkarte", "creditcard"),
 )
 
 IMAGE_EXT = {".png", ".jpg", ".jpeg", ".heic", ".webp"}
@@ -67,11 +81,30 @@ def pdf_text(path: Path) -> str:
     return "\n".join(pages)
 
 
-def account_for(path: Path, text: str) -> str:
-    name = path.name.lower()
-    if "paypal" in name or "paypal" in text[:3000].lower():
-        return "PayPal"
-    return path.parent.name if path.parent.name else "Girokonto"
+def detect_source(path: Path, text: str = "") -> tuple[str, str]:
+    """-> (Kontoname, Profil)"""
+    names = " ".join(p.lower() for p in path.parts[-3:])
+    for key, account, profile in SOURCES:
+        if key in names:
+            return account, profile
+    head = text[:4000].lower()
+    for key, account, profile in SOURCES:
+        if key in head:
+            return account, profile
+    return (path.parent.name or "Girokonto"), "bank"
+
+
+def image_date(path: Path) -> date:
+    """Aufnahmedatum eines Screenshots (EXIF), sonst Änderungsdatum der Datei."""
+    try:
+        from PIL import Image
+        exif = Image.open(path).getexif()
+        raw = exif.get(36867) or exif.get(306)  # DateTimeOriginal / DateTime
+        if raw:
+            return datetime.strptime(str(raw)[:10], "%Y:%m:%d").date()
+    except Exception:
+        pass
+    return date.fromtimestamp(path.stat().st_mtime)
 
 
 def read_file(path: Path, debug: bool) -> list[Transaction]:
@@ -84,9 +117,14 @@ def read_file(path: Path, debug: bool) -> list[Transaction]:
         text = ocr_image(path)
     else:
         return []
+    account, profile = detect_source(path, text)
     if debug:
-        print(f"----- {path.name} -----\n{text}\n", file=sys.stderr)
-    return parse_statement_text(text, path.name, account_for(path, text))
+        print(f"----- {path.name}  [{account} / {profile}] -----\n{text}\n", file=sys.stderr)
+    if profile == "paypal" and ext in IMAGE_EXT:
+        return parse_paypal_screenshot(text, path.name, image_date(path))
+    if profile == "paypal":
+        profile = "bank"  # PayPal-PDF-Auszug: Beträge mit Vorzeichen
+    return parse_statement_text(text, path.name, account, profile)
 
 
 def main() -> int:
