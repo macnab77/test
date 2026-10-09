@@ -1,0 +1,6 @@
+pdfplumber>=0.11
+# Nur für Screenshots / eingescannte PDFs (zusätzlich Tesseract selbst installieren):
+pytesseract>=0.3.10
+pillow>=10
+# Optional für iPhone-Fotos im HEIC-Format:
+# pillow-heif>=0.16

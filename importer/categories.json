@@ -1,0 +1,17 @@
+{
+  "Umbuchung": ["paypal", "eigenübertrag", "übertrag auf", "umbuchung"],
+  "Gehalt & Einnahmen": ["gehalt", "lohn", "bezüge", "rente", "kindergeld", "erstattung", "zinsen", "dividende"],
+  "Wohnen": ["miete", "hausverwaltung", "nebenkosten", "wohnungsbau", "hausgeld"],
+  "Energie & Internet": ["stadtwerke", "strom", "gas ", "vattenfall", "e.on", "enbw", "telekom", "vodafone", "o2 ", "1&1", "telefonica", "congstar"],
+  "Lebensmittel": ["rewe", "edeka", "aldi", "lidl", "netto", "penny", "kaufland", "real ", "tegut", "bäckerei", "baeckerei", "denns", "alnatura", "globus"],
+  "Drogerie": ["dm-drogerie", "dm drogerie", "rossmann", "budni"],
+  "Essen gehen": ["restaurant", "lieferando", "wolt", "uber eats", "mcdonald", "burger king", "starbucks", "cafe", "café", "pizza", "imbiss"],
+  "Mobilität": ["db vertrieb", "deutsche bahn", "bvg", "mvg", "hvv", "rmv", "vbb", "deutschlandticket", "aral", "shell", "esso", "jet ", "totalenergies", "tankstelle", "uber", "bolt", "flixbus", "sixt", "share now", "parken"],
+  "Versicherungen": ["versicherung", "allianz", "huk", "axa", "ergo", "debeka", "barmenia", "techniker", "aok", "barmer", "dak"],
+  "Abos & Streaming": ["netflix", "spotify", "amazon prime", "disney", "apple.com", "itunes", "youtube", "dazn", "audible", "icloud", "google storage", "chatgpt", "openai", "anthropic"],
+  "Shopping": ["amazon", "zalando", "otto", "ebay", "ikea", "mediamarkt", "saturn", "h&m", "about you", "temu", "shein", "decathlon"],
+  "Gesundheit": ["apotheke", "arzt", "zahnarzt", "praxis", "klinik", "fitness", "mcfit", "urban sports"],
+  "Bargeld": ["geldautomat", "bargeldauszahlung", "auszahlung atm", "gaa "],
+  "Sparen & Investieren": ["sparplan", "trade republic", "scalable", "comdirect depot", "tagesgeld", "wertpapier"],
+  "Steuern & Gebühren": ["finanzamt", "rundfunk", "kontoführung", "entgelt", "gebühr"]
+}

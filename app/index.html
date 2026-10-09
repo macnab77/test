@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Finanzen</title>
+  <meta name="description" content="Einnahmen und Ausgaben im Überblick">
+  <meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#121211" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Finanzen">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1 id="view-title">Übersicht</h1>
+    <button class="icon-btn" id="add-btn" aria-label="Buchung hinzufügen">＋</button>
+  </header>
+
+  <main>
+    <!-- Übersicht -->
+    <section id="view-overview" class="view active">
+      <div class="period">
+        <button class="icon-btn" id="prev-period" aria-label="Zurück">‹</button>
+        <div class="period-center">
+          <div id="period-label" class="period-label"></div>
+          <div class="seg" role="tablist">
+            <button data-mode="month" class="on">Monat</button>
+            <button data-mode="year">Jahr</button>
+          </div>
+        </div>
+        <button class="icon-btn" id="next-period" aria-label="Weiter">›</button>
+      </div>
+
+      <div class="tiles">
+        <div class="tile"><span class="tile-label"><i class="dot inc"></i>Einnahmen</span><span id="t-income" class="tile-value"></span></div>
+        <div class="tile"><span class="tile-label"><i class="dot exp"></i>Ausgaben</span><span id="t-expense" class="tile-value"></span></div>
+        <div class="tile wide"><span class="tile-label">Saldo</span><span id="t-balance" class="tile-value big"></span><span id="t-rate" class="tile-sub"></span></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>Letzte 12 Monate</h2>
+          <div class="legend"><span><i class="dot inc"></i>Einnahmen</span><span><i class="dot exp"></i>Ausgaben</span></div>
+        </div>
+        <div id="trend" class="chart"></div>
+        <div id="trend-tip" class="tip" hidden></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>Ausgaben nach Kategorie</h2></div>
+        <div id="cats"></div>
+      </div>
+
+      <div id="empty-hint" class="card empty" hidden>
+        <p><strong>Noch keine Daten.</strong></p>
+        <p>Importiere die <code>transactions.json</code> aus dem Import-Skript unter <em>Import</em> oder füge Buchungen mit ＋ hinzu.</p>
+      </div>
+    </section>
+
+    <!-- Buchungen -->
+    <section id="view-list" class="view">
+      <div class="filters">
+        <input id="search" type="search" placeholder="Suchen…" autocomplete="off">
+        <select id="cat-filter" aria-label="Kategorie"></select>
+      </div>
+      <div id="list-summary" class="list-summary"></div>
+      <div id="list"></div>
+    </section>
+
+    <!-- Import / Einstellungen -->
+    <section id="view-settings" class="view">
+      <div class="card">
+        <h2>Daten importieren</h2>
+        <p class="muted">Wähle die <code>transactions.json</code> (oder <code>.csv</code>) aus der Dateien-App / iCloud Drive. Bereits vorhandene Buchungen werden nicht doppelt angelegt.</p>
+        <label class="btn primary file-btn">Datei wählen
+          <input id="import-file" type="file" accept=".json,.csv,application/json,text/csv" hidden>
+        </label>
+        <p id="import-result" class="muted"></p>
+      </div>
+      <div class="card">
+        <h2>Sichern</h2>
+        <p class="muted">Deine Daten liegen nur auf diesem Gerät. Exportiere sie gelegentlich als Backup.</p>
+        <button class="btn" id="export-btn">Als JSON exportieren</button>
+      </div>
+      <div class="card">
+        <h2>Statistik</h2>
+        <p id="stats" class="muted"></p>
+        <button class="btn danger" id="clear-btn">Alle Daten löschen</button>
+      </div>
+    </section>
+  </main>
+
+  <nav class="tabbar">
+    <button data-view="overview" class="on"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Übersicht</button>
+    <button data-view="list"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Buchungen</button>
+    <button data-view="settings"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3m0 0L7 8m5-5 5 5M4 14v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5"/></svg>Import</button>
+  </nav>
+
+  <!-- Bearbeiten / Neu -->
+  <dialog id="edit-dialog">
+    <form id="edit-form" method="dialog">
+      <h2 id="edit-title">Buchung</h2>
+      <div class="seg type-seg">
+        <button type="button" data-type="exp" class="on">Ausgabe</button>
+        <button type="button" data-type="inc">Einnahme</button>
+      </div>
+      <label>Betrag (€)<input name="amount" inputmode="decimal" required placeholder="0,00"></label>
+      <label>Datum<input name="date" type="date" required></label>
+      <label>Beschreibung<input name="description" required></label>
+      <label>Kategorie<select name="category"></select></label>
+      <label class="check" id="apply-similar-wrap"><input type="checkbox" name="applySimilar"> Kategorie für ähnliche Buchungen übernehmen</label>
+      <div class="dialog-actions">
+        <button type="button" class="btn" id="cancel-btn">Abbrechen</button>
+        <button type="submit" class="btn primary">Speichern</button>
+      </div>
+      <button type="button" class="link-danger" id="delete-btn">Buchung löschen</button>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>

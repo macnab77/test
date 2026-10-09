@@ -1,0 +1,15 @@
+# Persönliche Finanzdaten niemals committen
+data/
+auszuege/
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.heic
+transactions.json
+transactions.csv
+!app/icons/*.png
+
+__pycache__/
+.pytest_cache/
+.venv/
