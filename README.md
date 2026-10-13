@@ -76,18 +76,21 @@ Zusätzlich entsteht `transactions.csv` (Excel/Numbers) zum Prüfen.
 
 Um Beispieldateien weiterzugeben, ohne persönliche Daten preiszugeben:
 
+`anonymize.py` (zusammen mit `parse.py`, `import_statements.py`, `categories.json`) in den Ordner
+mit den Dokumenten legen und dort ohne Parameter starten:
+
 ```bash
-python3 importer/anonymize.py ~/Finanzen
+python3 anonymize.py
 ```
 
-Das Skript schreibt anonymisierte Kopien nach `~/Finanzen_anonym/` (gleiche Ordnerstruktur,
-Originale bleiben unverändert). Es fragt nichts ab.
+Das Skript verarbeitet den Ordner, in dem es liegt, und schreibt anonymisierte Kopien in einen
+Ordner `<Ordner>_anonym` daneben (gleiche Ordnerstruktur, Originale bleiben unverändert).
+Es fragt nichts ab; das Ergebnis eines früheren Laufs wird ersetzt.
 
 - **Ersetzt automatisch:** den Adressblock oben im Auszug (Name, Straße, PLZ/Ort – der Name wird danach
   in allen Dateien ersetzt), IBANs, Kartennummern, Kunden-, Mandats- und Referenznummern, Gläubiger-IDs,
   E-Mail-Adressen, Telefonnummern sowie Nummern in Datei- und Ordnernamen.
-- **Nicht automatisch:** Namen anderer Personen in Überweisungen (z. B. Vermieter). Die lassen sich
-  bei Bedarf mit `--text "Vorname Nachname"` ergänzen. Gleiche Werte bekommen
+- **Nicht automatisch:** Namen anderer Personen in Überweisungen (z. B. Vermieter). Gleiche Werte bekommen
   überall denselben Ersatz, und die Ersatz-IBANs haben gültige Prüfziffern.
 - **Bleibt:** Datum, Beträge und Händlernamen, damit sich die Dateien weiter einlesen lassen.
 - **Prüft danach:** ob noch ein Originalwert in den Dateien steht und ob der Importer vorher und

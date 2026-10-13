@@ -15,14 +15,14 @@ Dateien denselben Ersatz.
 Danach prüft das Skript jede Datei: Steht noch irgendwo ein Originalwert
 drin, wird das gemeldet.
 
-Beispiel:
-  python3 importer/anonymize.py ~/Finanzen
-  -> schreibt ~/Finanzen_anonym/ mit derselben Ordnerstruktur
+Aufruf (ohne Parameter, im Ordner mit den Dokumenten):
+  python3 anonymize.py
+  -> verarbeitet den Ordner, in dem das Skript liegt, und schreibt
+     <Ordner>_anonym/ daneben (gleiche Ordnerstruktur)
 """
 
 from __future__ import annotations
 
-import argparse
 import random
 import re
 import sys
@@ -541,24 +541,24 @@ def parse_check(pairs: list[tuple[Path, Path]], dst_root: Path) -> None:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("folder", type=Path, help="Ordner mit den Originalen")
-    ap.add_argument("-o", "--output", type=Path, help="Zielordner (Standard: <Ordner>_anonym)")
-    ap.add_argument("--text", action="append", help="Beliebiger weiterer Text, der ersetzt werden soll")
-    ap.add_argument("--no-check", action="store_true", help="Buchungen danach nicht vergleichen")
-    ap.add_argument("--seed", type=int, help="Zufallswert (gleiche Ersatzwerte bei jedem Lauf)")
-    args = ap.parse_args()
+    # Keine Parameter: Es wird der Ordner verarbeitet, in dem dieses Skript liegt.
+    src_root = Path(__file__).resolve().parent
+    dst_root = src_root.with_name(src_root.name + "_anonym")
+    print(f"Ordner: {src_root}\n")
 
-    src_root = args.folder.expanduser().resolve()
-    if not src_root.is_dir():
-        ap.error(f"Ordner nicht gefunden: {src_root}")
-    dst_root = (args.output or src_root.with_name(src_root.name + "_anonym")).expanduser().resolve()
-    if dst_root == src_root or src_root in dst_root.parents:
-        ap.error("Zielordner darf nicht im Original-Ordner liegen")
+    # Ergebnis vom letzten Lauf entfernen (sonst bleiben Dateien mit alten Ersatznamen liegen).
+    # Sicherheitshalber nur, wenn darin ausschließlich Dateien liegen, die dieses Skript erzeugt.
+    if dst_root.exists():
+        own = {".pdf", ".csv", *IMAGE_EXT}
+        foreign = [p for p in dst_root.rglob("*") if p.is_file() and p.suffix.lower() not in own]
+        if foreign:
+            print(f"Im Zielordner {dst_root} liegen fremde Dateien (z. B. {foreign[0].name}).\n"
+                  "Bitte den Ordner selbst leeren oder umbenennen und das Skript erneut starten.")
+            return 1
+        import shutil
+        shutil.rmtree(dst_root)
 
-    anon = Anonymizer(seed=args.seed)
-    for t in args.text or []:
-        anon.add_text(t)
+    anon = Anonymizer()
 
     # versteckte Ordner (z. B. .venv) überspringen
     files = sorted(p for p in src_root.rglob("*")
@@ -608,7 +608,7 @@ def main() -> int:
         done.append((src, dst))
 
     print(f"\n{len(anon.originals)} verschiedene Werte ersetzt, Ergebnis in: {dst_root}")
-    if not args.no_check and done:
+    if done:
         parse_check(done, dst_root)
     if problems:
         print(f"\n⚠ {problems} Datei(en) mit Hinweisen – diese bitte nicht ungeprüft verschicken.")
