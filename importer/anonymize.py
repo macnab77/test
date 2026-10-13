@@ -458,19 +458,11 @@ def check_dependencies(files: list[Path]) -> list[str]:
 INSTALL_HELP = """
 Es fehlen: {missing}
 
-So installierst du sie (im Terminal, im Ordner mit den Skripten):
+Installieren in die Python-Umgebung, mit der dieses Skript gerade läuft:
 
-    python3 -m venv .venv
-    source .venv/bin/activate
-    python3 -m pip install -r requirements.txt
-    brew install tesseract tesseract-lang
-
-Danach das Skript erneut starten (die Zeile "source .venv/bin/activate"
-musst du in jedem neuen Terminalfenster einmal ausführen):
-
-    python3 anonymize.py .
-
-Läuft gerade: {python}
+    {python} -m pip install {packages}
+{brew}
+Läuft gerade mit: {python}
 """
 
 
@@ -527,7 +519,10 @@ def main() -> int:
         return 1
     missing = check_dependencies(files)
     if missing:
-        print(INSTALL_HELP.format(missing=", ".join(missing), python=sys.executable))
+        packages = " ".join(m for m in missing if not m.startswith("tesseract"))
+        brew = "    brew install tesseract tesseract-lang\n" if any(m.startswith("tesseract") for m in missing) else ""
+        print(INSTALL_HELP.format(missing=", ".join(missing), python=sys.executable,
+                                  packages=packages or "-r requirements.txt", brew=brew))
         return 1
 
     problems = 0
