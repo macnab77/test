@@ -52,3 +52,27 @@ def test_leak_detection():
     a = make()
     assert "Beispielkunde" in a.leaks("Hallo Jonas Beispielkunde")
     assert a.leaks("Hallo Max Mustermann") == []
+
+
+def test_address_block_is_learned_and_replaced_everywhere():
+    a = Anonymizer(seed=3)
+    header = "Postbank Kontoauszug\nHerrn Jonas Beispielkunde\nLindenstrasse 42a\n50667 Köln\nSeite 1"
+    assert a.learn_address(header) == 3
+    out = a.replace(header + "\n05.03. Gutschrift BEISPIELKUNDE, JONAS 10,00\nLindenstraße 42a")
+    for secret in ("jonas", "beispielkunde", "lindenstr", "50667"):
+        assert secret not in out.lower(), secret
+    assert "Postbank Kontoauszug" in out and "10,00" in out
+    assert a.learn_address(header) == 0   # schon bekannt, kein neuer Ersatzname
+
+
+def test_address_block_without_salutation_and_in_capitals():
+    a = Anonymizer(seed=3)
+    a.learn_address("JONAS BEISPIELKUNDE\nLINDENALLEE 42A\n50667 KÖLN")
+    assert a.leaks(a.replace("JONAS BEISPIELKUNDE LINDENALLEE 42A 50667 KÖLN")) == []
+    assert "Jonas" not in a.replace("Jonas")
+
+
+def test_merchant_lines_are_not_mistaken_for_addresses():
+    a = Anonymizer(seed=3)
+    a.learn_address("Kartenzahlung\nREWE Markt 12\nPostbank Filiale\nHauptbahnhof 3\n60325 Frankfurt")
+    assert a.replace("REWE Markt 12 Postbank") == "REWE Markt 12 Postbank"

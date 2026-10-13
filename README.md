@@ -80,11 +80,14 @@ Um Beispieldateien weiterzugeben, ohne persönliche Daten preiszugeben:
 python3 importer/anonymize.py ~/Finanzen
 ```
 
-Das Skript fragt nach deinem Namen, deiner Adresse und weiteren Namen und schreibt
-anonymisierte Kopien nach `~/Finanzen_anonym/` (gleiche Ordnerstruktur, Originale bleiben unverändert).
+Das Skript schreibt anonymisierte Kopien nach `~/Finanzen_anonym/` (gleiche Ordnerstruktur,
+Originale bleiben unverändert). Es fragt nichts ab.
 
-- **Ersetzt:** deine Angaben sowie automatisch IBANs, Kartennummern, Kunden-, Mandats- und
-  Referenznummern, Gläubiger-IDs, E-Mail-Adressen und Telefonnummern. Gleiche Werte bekommen
+- **Ersetzt automatisch:** den Adressblock oben im Auszug (Name, Straße, PLZ/Ort – der Name wird danach
+  in allen Dateien ersetzt), IBANs, Kartennummern, Kunden-, Mandats- und Referenznummern, Gläubiger-IDs,
+  E-Mail-Adressen, Telefonnummern sowie Nummern in Datei- und Ordnernamen.
+- **Nicht automatisch:** Namen anderer Personen in Überweisungen (z. B. Vermieter). Die lassen sich
+  bei Bedarf mit `--text "Vorname Nachname"` ergänzen. Gleiche Werte bekommen
   überall denselben Ersatz, und die Ersatz-IBANs haben gültige Prüfziffern.
 - **Bleibt:** Datum, Beträge und Händlernamen, damit sich die Dateien weiter einlesen lassen.
 - **Prüft danach:** ob noch ein Originalwert in den Dateien steht und ob der Importer vorher und

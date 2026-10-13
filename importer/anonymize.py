@@ -5,7 +5,8 @@ Ersetzt durch erfundene, aber gleich aussehende Werte:
   automatisch   IBANs, Gläubiger-IDs, Kartennummern (auch maskierte), Kunden-,
                 Konto-, Mandats- und Referenznummern, lange Ziffernfolgen,
                 E-Mail-Adressen, Telefonnummern
-  auf Nachfrage dein Name, deine Adresse, weitere Namen (Partner, Vermieter …)
+                sowie den Adressblock (Name, Straße, PLZ/Ort) oben im Auszug –
+                der erkannte Name wird danach in allen Dateien ersetzt
 
 Datum, Beträge und Händlernamen bleiben erhalten, damit der Importer
 weiter getestet werden kann. Gleiche Originalwerte bekommen in allen
@@ -61,6 +62,18 @@ DETECTORS: list[tuple[str, re.Pattern]] = [
 ]
 
 
+# Adressblock oben im Auszug:  [Herrn] Vorname Nachname / Straße 12a / 12345 Ort
+SALUTATION_RE = re.compile(r"^(?:Herrn|Herr|Frau)\s+(?:Dr\.\s+)?", re.I)
+NAME_LINE_RE = re.compile(r"^[A-ZÄÖÜ][A-Za-zÄÖÜäöüß'\-]+(?:\s+[A-ZÄÖÜ][A-Za-zÄÖÜäöüß'\-]+){1,3}$")
+STREET_RE = re.compile(
+    r"^[A-ZÄÖÜ][A-Za-zÄÖÜäöüß.\- ]{1,40}?(?:straße|strasse|str\.|weg|allee|platz|gasse|ring|damm|"
+    r"ufer|chaussee|steig|pfad)\s*\d+\s*[a-zA-Z]?(?:\s*[-/]\s*\d+[a-zA-Z]?)?$",
+    re.I)
+CITY_RE = re.compile(r"^(?:D-|A-)?\d{4,5}\s+[A-ZÄÖÜ][A-Za-zÄÖÜäöüß.\- ]{1,40}$")
+NOT_A_NAME = {"bank", "postbank", "gmbh", "ag", "kontoauszug", "seite", "girokonto", "trade",
+              "republic", "easybank", "paypal", "kreditkarte", "abrechnung", "filiale", "kundenservice"}
+
+
 @dataclass
 class Span:
     start: int
@@ -80,6 +93,44 @@ class Anonymizer:
     def __post_init__(self):
         self.rng = random.Random(self.seed)
         self._names = list(FAKE_NAMES)
+        self._learned: set[str] = set()
+
+    # --- Adressblock automatisch erkennen ---------------------------------
+    def learn_address(self, text: str) -> int:
+        """Sucht Name/Straße/PLZ-Ort im Text und merkt sie sich für alle Dateien.
+
+        Gibt die Zahl neu gelernter Angaben zurück."""
+        lines = [l.strip() for l in text.splitlines()]
+        before = len(self._learned)
+        for i, line in enumerate(lines):
+            if SALUTATION_RE.match(line):
+                self._learn("name", SALUTATION_RE.sub("", line))
+            if not STREET_RE.match(line):
+                continue
+            self._learn("street", line)
+            if i > 0:
+                self._learn("name", SALUTATION_RE.sub("", lines[i - 1]))
+            for nxt in lines[i + 1:i + 3]:
+                if CITY_RE.match(nxt):
+                    self._learn("city", nxt)
+                    break
+        return len(self._learned) - before
+
+    def _learn(self, kind: str, value: str) -> None:
+        value = value.strip()
+        key = f"{kind}:{_norm(value)}"
+        if not value or key in self._learned:
+            return
+        if kind == "name":
+            words = value.split()
+            if not NAME_LINE_RE.match(value) or any(w.lower() in NOT_A_NAME for w in words):
+                return
+            self.add_name(value)
+        elif kind == "street":
+            self.add_street(value)
+        else:
+            self.add_city(value)
+        self._learned.add(key)
 
     # --- persönliche Angaben ------------------------------------------------
     def add_name(self, full: str) -> None:
@@ -101,6 +152,10 @@ class Anonymizer:
             name_only = re.sub(r"\s*\d+\s*[a-zA-Z]?$", "", street.strip())
             if len(name_only) >= 5:
                 self._add_literal(name_only, "Beispielweg")
+            # "…strasse" und "…straße" meinen dasselbe
+            for a, b in (("strasse", "straße"), ("straße", "strasse"), ("Strasse", "Straße"), ("Straße", "Strasse")):
+                if a in street:
+                    self._add_literal(street.replace(a, b), "Beispielweg " + str(self.rng.randint(1, 40)))
 
     def add_city(self, plz_city: str) -> None:
         s = plz_city.strip()
@@ -402,27 +457,25 @@ def anonymize_text_file(src: Path, dst: Path, anon: Anonymizer) -> list[str]:
 
 # --- Ablauf ------------------------------------------------------------------------
 
-def ask_personal_data(anon: Anonymizer, args) -> None:
-    names = list(args.name or [])
-    streets = list(args.strasse or [])
-    cities = list(args.ort or [])
-    if not args.no_input and not (names or streets or cities):
-        print("Persönliche Angaben, die ersetzt werden sollen (Enter = überspringen).")
-        print("Sie werden nirgends gespeichert.\n")
-        names.append(input("Dein Vor- und Nachname:                 "))
-        streets.append(input("Straße und Hausnummer:                  "))
-        cities.append(input("PLZ und Ort (z. B. 10115 Berlin):       "))
-        more = input("Weitere Namen (Partner, Vermieter, …),\nmit Komma getrennt:                     ")
-        names += [n for n in more.split(",") if n.strip()]
-        print()
-    for n in names:
-        anon.add_name(n)
-    for s in streets:
-        anon.add_street(s)
-    for c in cities:
-        anon.add_city(c)
-    for t in args.text or []:
-        anon.add_text(t)
+def learn_from_documents(files: list[Path], anon: Anonymizer) -> int:
+    """Vorab alle PDFs/CSVs nach dem Adressblock durchsuchen, damit der Name
+    auch in Dateien ersetzt wird, die vor dem Auszug mit der Adresse drankommen."""
+    learned = 0
+    for f in files:
+        ext = f.suffix.lower()
+        try:
+            if ext == ".pdf":
+                import pymupdf
+                with pymupdf.open(f) as doc:
+                    text = "\n".join(page.get_text() for page in doc)
+            elif ext == ".csv":
+                text = f.read_text(encoding="utf-8-sig", errors="replace")
+            else:
+                continue
+        except Exception:
+            continue
+        learned += anon.learn_address(text)
+    return learned
 
 
 def target_path(src: Path, src_root: Path, dst_root: Path, anon: Anonymizer) -> Path:
@@ -491,11 +544,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("folder", type=Path, help="Ordner mit den Originalen")
     ap.add_argument("-o", "--output", type=Path, help="Zielordner (Standard: <Ordner>_anonym)")
-    ap.add_argument("--name", action="append", help="Name, der ersetzt werden soll (mehrfach möglich)")
-    ap.add_argument("--strasse", action="append", help="Straße + Hausnummer")
-    ap.add_argument("--ort", action="append", help="PLZ + Ort")
     ap.add_argument("--text", action="append", help="Beliebiger weiterer Text, der ersetzt werden soll")
-    ap.add_argument("--no-input", action="store_true", help="Nicht nachfragen")
     ap.add_argument("--no-check", action="store_true", help="Buchungen danach nicht vergleichen")
     ap.add_argument("--seed", type=int, help="Zufallswert (gleiche Ersatzwerte bei jedem Lauf)")
     args = ap.parse_args()
@@ -508,7 +557,8 @@ def main() -> int:
         ap.error("Zielordner darf nicht im Original-Ordner liegen")
 
     anon = Anonymizer(seed=args.seed)
-    ask_personal_data(anon, args)
+    for t in args.text or []:
+        anon.add_text(t)
 
     # versteckte Ordner (z. B. .venv) überspringen
     files = sorted(p for p in src_root.rglob("*")
@@ -524,6 +574,10 @@ def main() -> int:
         print(INSTALL_HELP.format(missing=", ".join(missing), python=sys.executable,
                                   packages=packages or "-r requirements.txt", brew=brew))
         return 1
+
+    n = learn_from_documents(files, anon)
+    print(f"Adressblock: {n} Angaben (Name, Straße, PLZ/Ort) automatisch erkannt\n" if n else
+          "Adressblock: nichts erkannt – Name und Adresse bitte in den Ergebnissen prüfen\n")
 
     problems = 0
     done: list[tuple[Path, Path]] = []
