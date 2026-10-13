@@ -141,7 +141,8 @@ def main() -> int:
     rules = json.loads(args.rules.read_text(encoding="utf-8"))
 
     all_tx: list[Transaction] = []
-    files = sorted(p for p in args.folder.rglob("*") if p.is_file() and not p.name.startswith("."))
+    files = sorted(p for p in args.folder.rglob("*")
+                   if p.is_file() and not any(part.startswith(".") for part in p.relative_to(args.folder).parts))
     for path in files:
         try:
             txs = read_file(path, args.debug)

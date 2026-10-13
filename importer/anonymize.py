@@ -425,7 +425,56 @@ def ask_personal_data(anon: Anonymizer, args) -> None:
         anon.add_text(t)
 
 
-def parse_check(src_root: Path, dst_root: Path, files: list[Path]) -> None:
+def target_path(src: Path, src_root: Path, dst_root: Path, anon: Anonymizer) -> Path:
+    """Zielpfad – auch Ordner- und Dateinamen werden anonymisiert
+    (Kontoauszüge heißen oft "Konto_<Kontonummer>_….pdf")."""
+    rel = src.relative_to(src_root)
+    parts = [anon.replace(p) for p in rel.parts]
+    dst = dst_root.joinpath(*parts)
+    return dst.with_suffix(".png") if src.suffix.lower() == ".heic" else dst
+
+
+def check_dependencies(files: list[Path]) -> list[str]:
+    """Fehlende Pakete/Programme vorab melden statt bei jeder Datei."""
+    import importlib.util
+    import shutil
+    missing = []
+    exts = {f.suffix.lower() for f in files}
+    need = []
+    if ".pdf" in exts:
+        need += ["pymupdf", "pdfplumber"]
+    if exts & IMAGE_EXT:
+        need += ["pytesseract", "PIL"]
+    if ".heic" in exts:
+        need += ["pillow_heif"]
+    for mod in need:
+        if importlib.util.find_spec(mod) is None:
+            missing.append({"PIL": "pillow", "pillow_heif": "pillow-heif"}.get(mod, mod))
+    if exts & IMAGE_EXT and not shutil.which("tesseract"):
+        missing.append("tesseract (Programm)")
+    return missing
+
+
+INSTALL_HELP = """
+Es fehlen: {missing}
+
+So installierst du sie (im Terminal, im Ordner mit den Skripten):
+
+    python3 -m venv .venv
+    source .venv/bin/activate
+    python3 -m pip install -r requirements.txt
+    brew install tesseract tesseract-lang
+
+Danach das Skript erneut starten (die Zeile "source .venv/bin/activate"
+musst du in jedem neuen Terminalfenster einmal ausführen):
+
+    python3 anonymize.py .
+
+Läuft gerade: {python}
+"""
+
+
+def parse_check(pairs: list[tuple[Path, Path]], dst_root: Path) -> None:
     """Zählt Buchungen vor/nach dem Anonymisieren – sollte gleich bleiben."""
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     try:
@@ -433,19 +482,17 @@ def parse_check(src_root: Path, dst_root: Path, files: list[Path]) -> None:
     except Exception:
         return
     print("\nKontrolle: erkannte Buchungen  Original -> anonymisiert")
-    for src in files:
-        dst = dst_root / src.relative_to(src_root)
-        if src.suffix.lower() == ".heic":
-            dst = dst.with_suffix(".png")
+    for src, dst in pairs:
+        name = dst.relative_to(dst_root)
         try:
             a = read_file(src, False)
             b = read_file(dst, False)
         except Exception as e:
-            print(f"  {src.name}: übersprungen ({e})")
+            print(f"  {name}: übersprungen ({e})")
             continue
         sa, sb = round(sum(t.amount for t in a), 2), round(sum(t.amount for t in b), 2)
         flag = "" if (len(a), sa) == (len(b), sb) else "   <- weicht ab"
-        print(f"  {len(a):4d} -> {len(b):4d}   {src.name}{flag}")
+        print(f"  {len(a):4d} -> {len(b):4d}   {name}{flag}")
 
 
 def main() -> int:
@@ -471,17 +518,23 @@ def main() -> int:
     anon = Anonymizer(seed=args.seed)
     ask_personal_data(anon, args)
 
+    # versteckte Ordner (z. B. .venv) überspringen
     files = sorted(p for p in src_root.rglob("*")
-                   if p.is_file() and not p.name.startswith(".")
-                   and p.suffix.lower() in {".pdf", ".csv", ".txt", *IMAGE_EXT})
+                   if p.is_file() and not any(part.startswith(".") for part in p.relative_to(src_root).parts)
+                   and p.suffix.lower() in {".pdf", ".csv", *IMAGE_EXT})
     if not files:
         print("Keine PDFs, Bilder oder CSVs gefunden.")
         return 1
+    missing = check_dependencies(files)
+    if missing:
+        print(INSTALL_HELP.format(missing=", ".join(missing), python=sys.executable))
+        return 1
 
     problems = 0
-    done: list[Path] = []
+    done: list[tuple[Path, Path]] = []
     for src in files:
-        dst = dst_root / src.relative_to(src_root)
+        dst = target_path(src, src_root, dst_root, anon)
+        name = dst.relative_to(dst_root)   # nur anonymisierte Namen ausgeben
         ext = src.suffix.lower()
         try:
             if ext == ".pdf":
@@ -491,23 +544,23 @@ def main() -> int:
             else:
                 warnings = anonymize_text_file(src, dst, anon)
         except ImportError as e:
-            print(f"  ✗ {src.name}: fehlendes Paket ({e.name}) – pip install -r importer/requirements.txt")
+            print(f"  ✗ {name}: fehlendes Paket ({e.name})")
             problems += 1
             continue
         except Exception as e:
-            print(f"  ✗ {src.name}: {e}")
+            print(f"  ✗ {name}: {e}")
             problems += 1
             continue
         serious = [w for w in warnings if w.startswith(("NOCH", "Seite"))]
         problems += bool(serious)
-        print(f"  {'!' if serious else '✓'} {src.relative_to(src_root)}")
+        print(f"  {'!' if serious else '✓'} {name}")
         for w in warnings:
             print(f"      {w}")
-        done.append(src)
+        done.append((src, dst))
 
     print(f"\n{len(anon.originals)} verschiedene Werte ersetzt, Ergebnis in: {dst_root}")
     if not args.no_check and done:
-        parse_check(src_root, dst_root, done)
+        parse_check(done, dst_root)
     if problems:
         print(f"\n⚠ {problems} Datei(en) mit Hinweisen – diese bitte nicht ungeprüft verschicken.")
     else:
