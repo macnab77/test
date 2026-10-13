@@ -1,4 +1,6 @@
 pdfplumber>=0.11
+# Zum Anonymisieren von PDFs (anonymize.py):
+pymupdf>=1.24
 # Nur für Screenshots / eingescannte PDFs (zusätzlich Tesseract selbst installieren):
 pytesseract>=0.3.10
 pillow>=10

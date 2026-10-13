@@ -72,6 +72,28 @@ Zusätzlich entsteht `transactions.csv` (Excel/Numbers) zum Prüfen.
 - **Nichts erkannt?** `--debug` zeigt den gelesenen Text. Jede Bank formatiert anders – mit dem
   Rohtext lässt sich der Parser in `parse.py` an deine Bank anpassen.
 
+### Auszüge anonymisieren (zum Teilen)
+
+Um Beispieldateien weiterzugeben, ohne persönliche Daten preiszugeben:
+
+```bash
+python3 importer/anonymize.py ~/Finanzen
+```
+
+Das Skript fragt nach deinem Namen, deiner Adresse und weiteren Namen und schreibt
+anonymisierte Kopien nach `~/Finanzen_anonym/` (gleiche Ordnerstruktur, Originale bleiben unverändert).
+
+- **Ersetzt:** deine Angaben sowie automatisch IBANs, Kartennummern, Kunden-, Mandats- und
+  Referenznummern, Gläubiger-IDs, E-Mail-Adressen und Telefonnummern. Gleiche Werte bekommen
+  überall denselben Ersatz, und die Ersatz-IBANs haben gültige Prüfziffern.
+- **Bleibt:** Datum, Beträge und Händlernamen, damit sich die Dateien weiter einlesen lassen.
+- **Prüft danach:** ob noch ein Originalwert in den Dateien steht und ob der Importer vorher und
+  nachher dieselben Buchungen erkennt.
+- PDFs werden *echt* geschwärzt: Der Originaltext wird entfernt, nicht nur überdeckt, und die
+  Metadaten werden geleert.
+- Screenshots laufen über Texterkennung. Die kann einzelne Wörter übersehen, also die Bilder
+  vor dem Verschicken kurz ansehen. Eingescannte PDFs ohne Text werden gemeldet und nicht anonymisiert.
+
 ## 2. App aufs iPhone
 
 Die App ist eine *Progressive Web App*: kein App Store, kein Xcode nötig.
