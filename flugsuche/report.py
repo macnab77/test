@@ -242,6 +242,10 @@ def result_to_dict(result: SearchResult, top: int = 8) -> dict:
             {"hin": out.isoformat(), "rueck": back.isoformat() if back else None, "preis": price}
             for (out, back), price in cheapest_dates
         ],
+        "preiskalender": [
+            {"hin": out.isoformat(), "rueck": back.isoformat() if back else None, "preis": price}
+            for (out, back), price in sorted(result.calendar.items(), key=lambda item: (item[0][0], item[0][1] or item[0][0]))
+        ],
         "verbindungen_gesamt": len(result.offers),
         "rangliste": [offer_to_dict(result, offer) for offer in _highlighted(result, top)],
         "preise_gelten_fuer": "alle Reisenden zusammen",

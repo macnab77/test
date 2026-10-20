@@ -73,6 +73,7 @@ def test_result_to_dict_is_json_for_the_agent():
     assert first["preis"] == 900 and first["hinflug"]["abflug"] == "FRA 10:00" and first["rueckflug"]["umstiege"] == 0
     assert data["guenstigste_termine"][0] == {"hin": "2026-12-01", "rueck": "2026-12-21", "preis": 650.0}
     assert data["datumskombinationen"] == {"geprueft": 6, "mit_preis": 2, "verbindungen_geladen_fuer": 2}
+    assert len(data["preiskalender"]) == 2 and {"hin": "2026-12-01", "rueck": "2026-12-21", "preis": 650.0} in data["preiskalender"]
 
 
 def test_status_line_only_writes_to_terminals():
