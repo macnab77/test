@@ -3,7 +3,9 @@
 # einer Änderung bei Google im August 2026 keine Flüge mehr abrufen, die
 # reparierte 0.10 ist dort noch nicht erschienen. Zum Aktualisieren den
 # Commit-Hash ersetzen (oder sobald verfügbar: flights>=0.10).
-flights @ https://github.com/punitarani/fli/archive/881aee5ff4321e81ea2157cb44be94ce6a21dc1b.zip
+# Über git statt als ZIP-Download, weil Cloud-Sitzungen von Claude Code GitHub
+# nur per git erreichen.
+flights @ git+https://github.com/punitarani/fli@881aee5ff4321e81ea2157cb44be94ce6a21dc1b
 # Für die Datenquelle SerpApi
 httpx>=0.27
 # Für den KI-Agenten (agent.py)

@@ -24,7 +24,7 @@ jeweils mit Link zu Google Flights zum Prüfen und Buchen.
 
 ## Einrichten (einmalig)
 
-Benötigt **Python 3.10 oder neuer** (macOS: `brew install python`, Windows: [python.org](https://www.python.org/downloads/)).
+Benötigt **Python 3.10 oder neuer** und **git** (macOS: `brew install python`, git bringen die Xcode-Befehlszeilenwerkzeuge mit; Windows: [python.org](https://www.python.org/downloads/) und [git-scm.com](https://git-scm.com/)).
 
 ```bash
 cd flugsuche
