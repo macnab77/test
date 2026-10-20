@@ -137,3 +137,11 @@ cd app && python3 -m http.server 8000
 ```bash
 cd importer && python3 -m pytest -q
 ```
+
+---
+
+## Außerdem im Repo: Flugsuche-Agent
+
+[`flugsuche/`](flugsuche/README.md) findet die günstigste Flugverbindung mit kurzer Reisezeit
+(mehrere Start- und Zielflughäfen, flexible Zeiträume für Hin- und Rückflug, Economy bis First):
+über die Kommandozeile, als KI-Agent in normaler Sprache oder direkt in Claude Code.
