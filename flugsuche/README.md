@@ -111,11 +111,14 @@ Für **Cloud-Sitzungen** (Claude Code im Web oder in der App) muss die Netzwerk-
 | `serpapi` | kleines Gratis-Kontingent pro Monat, danach kostenpflichtig | Offizielle API mit denselben Google-Flights-Daten. Kostenlos auf [serpapi.com](https://serpapi.com) registrieren, dann `export SERPAPI_KEY=…` und `--quelle serpapi`. Verbrauch: 1 Abfrage je Termin plus 2 je Termin mit Verbindungen; die Ausgabe zeigt die Zahl |
 
 Andere Quellen fehlen bewusst: Die Self-Service-API von Amadeus wurde im Juli 2026 eingestellt,
-Skyscanner und Kiwi.com geben ihre Schnittstellen nur an Geschäftspartner heraus.
+Skyscanner und Kiwi.com geben ihre Schnittstellen nur an Geschäftspartner heraus. Die Seiten von Booking.com,
+Trip.com, Kayak und der Etraveli-Gruppe (Gotogate, Flightnetwork, Mytrip) sperren automatische Abrufe per
+Bot-Schutz, auch aus einem echten Browser heraus (Stand Oktober 2026).
 
 ## Gut zu wissen
 
 - **Preise** sind Momentaufnahmen inkl. Steuern und Gebühren, aber ohne aufgegebenes Gepäck. Vor dem Buchen auf der verlinkten Seite prüfen.
+- **Noch günstiger buchen:** Google Flights zeigt meist nur den Preis der Fluglinie. Online-Reisebüros wie Booking.com, Trip.com, Gotogate oder Flightnetwork verkaufen denselben Flug oft einige Hundert Euro billiger. Deshalb die gefundene Verbindung (Flüge und Tage) danach auf Skyscanner oder Kayak vergleichen. Bei Reisebüros auf den Endpreis an der Kasse (Zahlungs- und Servicegebühren) und die Tarifbedingungen achten; Umbuchungen und Erstattungen laufen dann über das Reisebüro.
 - **Mehrere Flughäfen:** Der Rückflug kann an einem anderen Flughafen der Liste landen (hin ab FRA, zurück nach MUC). Die Ausgabe zeigt die Flughäfen.
 - **Dauer:** Jede Kombination kostet einen Seitenabruf (parallel), jeder Termin mit Verbindungen einige weitere. Höchstens 100 Kombinationen pro Suche (`--max-kombinationen`).
 - **Gleiche Flüge an anderen Tagen** erscheinen in der Liste nur einmal mit ihrem besten Termin. Wie der Preis über die Tage schwankt, zeigt der Preiskalender.

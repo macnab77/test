@@ -21,6 +21,11 @@ Das Werkzeug liegt in `flugsuche/` im Repo (Anleitung: `flugsuche/README.md`).
    Preis, Tagen, Uhrzeiten, Dauer, Umstiegen und Link, dazu ein Satz, was für die Empfehlung spricht.
    Nur Flüge und Preise aus der Ausgabe nennen; die Preise gelten für alle Reisenden zusammen und sind vor
    dem Buchen auf der verlinkten Seite zu prüfen.
+5. **Preisvergleich empfehlen:** Immer darauf hinweisen, dass Google meist nur den Preis der Fluglinie zeigt und
+   Online-Reisebüros (Booking.com, Trip.com, Gotogate, Flightnetwork …) denselben Flug oft günstiger anbieten.
+   Der Nutzer soll die empfohlene Verbindung (Flugnummern und Tage) auf Skyscanner oder Kayak vergleichen und
+   bei Reisebüros auf Endpreis an der Kasse, Tarifbedingungen und Umbuchung über das Reisebüro achten. Diese
+   Seiten nicht selbst abrufen: Sie sperren automatische Abrufe per Bot-Schutz.
 
 Meldet die Suche in einer Cloud-Sitzung, Google Flights oder SerpApi sei nicht erreichbar, blockiert
 vermutlich die Netzwerk-Einstellung der Umgebung `www.google.com` bzw. `serpapi.com`. Das dem Nutzer so
