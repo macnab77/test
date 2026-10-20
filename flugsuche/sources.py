@@ -25,7 +25,7 @@ CABIN_CODES = {"economy": 1, "premium": 2, "business": 3, "first": 4}
 LANGUAGE, COUNTRY = "de", "DE"
 
 # fli-Airline-Namen, die für Passagiere irreführend sind
-AIRLINE_NAMES = {"LH": "Lufthansa"}
+AIRLINE_NAMES = {"LH": "Lufthansa", "VL": "Lufthansa City Airlines"}
 
 
 def stops_code(max_stops: int | None) -> int:
