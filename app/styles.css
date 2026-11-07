@@ -171,3 +171,29 @@ dialog input:not([type=checkbox]), dialog select { color: var(--text); width: 10
 .dialog-actions .btn { flex: 1; }
 .link-danger { display: block; width: 100%; margin-top: 10px; padding: 8px; border: 0; background: none; color: var(--danger); font-size: 15px; cursor: pointer; }
 .link-danger[hidden] { display: none; }
+
+/* Rechnung teilen */
+.split-box { margin: 12px 0 4px; border: 1px solid var(--border); border-radius: 12px; padding: 0 12px; }
+.split-box[open] { padding-bottom: 10px; }
+.split-box summary { cursor: pointer; padding: 11px 0; font-weight: 600; font-size: 15px; color: var(--text); }
+.split-help { margin: 0 0 4px; font-size: 13px; }
+.split-row { display: flex; gap: 8px; align-items: flex-end; }
+.split-row label { flex: 1; margin: 6px 0; }
+.split-row .btn { margin-bottom: 6px; white-space: nowrap; }
+.share { display: grid; grid-template-columns: minmax(0, 1fr) 92px; gap: 6px; padding: 8px 0; border-top: 1px solid var(--border); }
+.share input, .share select { margin: 0; }
+.share select { grid-column: 1 / -1; }
+.share .share-del { grid-column: 1 / -1; justify-self: start; border: 0; background: none; color: var(--danger); font-size: 13px; padding: 2px 0; cursor: pointer; }
+.btn.small { padding: 6px 12px; font-size: 14px; margin-top: 4px; }
+.split-hint { font-size: 13px; color: var(--text-2); margin: 8px 0 0; font-variant-numeric: tabular-nums; }
+.split-hint.bad { color: var(--danger); }
+.open-total { font-weight: 600; font-variant-numeric: tabular-nums; }
+.open-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; padding: 9px 0; align-items: center; }
+.open-item + .open-item { border-top: 1px solid var(--border); }
+.open-who { font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.open-amt { font-weight: 600; font-variant-numeric: tabular-nums; }
+.open-meta { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.open-actions { grid-column: 1 / -1; display: flex; gap: 8px; margin-top: 4px; }
+.open-actions .btn { padding: 6px 10px; font-size: 13px; }
+.toast { position: fixed; left: 16px; right: 16px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 20;
+  max-width: 480px; margin: 0 auto; background: var(--text); color: var(--bg); border-radius: 12px; padding: 10px 14px; font-size: 14px; }

@@ -123,6 +123,12 @@ deine Änderungen an Kategorien bleiben erhalten.
 - Ausgaben nach Kategorie → antippen öffnet die passenden Buchungen
 - Suche und Filter, Buchungen bearbeiten, löschen und manuell hinzufügen
 - „Kategorie für ähnliche Buchungen übernehmen“ merkt sich die Zuordnung auch für künftige Importe
+- **Rechnung teilen:** Bei einer Ausgabe (z. B. Restaurant) „Rechnung teilen“ öffnen, Personenzahl eingeben,
+  „Gleich aufteilen“ oder Beträge selbst eintragen. Als Ausgabe zählt nur dein Anteil. Die Anteile der Freunde
+  stehen in der Übersicht unter „Offen von Freunden“, bis du sie als *bar erhalten* oder *per Überweisung
+  erhalten* markierst. Eine Überweisung wird automatisch dem passenden Geldeingang (gleicher Betrag, bis 90 Tage
+  später) zugeordnet, auch wenn der erst beim nächsten Import kommt. Der Eingang bekommt dann die Kategorie
+  *Rückzahlung* und zählt nicht als Einnahme.
 - Backup-Export als JSON, funktioniert offline, Hell- und Dunkelmodus
 
 ### Lokal ausprobieren

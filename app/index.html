@@ -43,6 +43,11 @@
         <div class="tile wide"><span class="tile-label">Saldo</span><span id="t-balance" class="tile-value big"></span><span id="t-rate" class="tile-sub"></span></div>
       </div>
 
+      <div id="open-card" class="card" hidden>
+        <div class="card-head"><h2>Offen von Freunden</h2><span id="open-total" class="open-total"></span></div>
+        <div id="open-list"></div>
+      </div>
+
       <div class="card">
         <div class="card-head">
           <h2>Letzte 12 Monate</h2>
@@ -115,6 +120,21 @@
       <label>Beschreibung<input name="description" required></label>
       <label>Kategorie<select name="category"></select></label>
       <label class="check" id="apply-similar-wrap"><input type="checkbox" name="applySimilar"> Kategorie für ähnliche Buchungen übernehmen</label>
+
+      <details id="split-box" class="split-box">
+        <summary>Rechnung teilen</summary>
+        <p class="muted split-help">Du hast für alle bezahlt? Dann zählt nur dein Anteil als Ausgabe. Den Rest bekommst du von deinen Freunden bar oder per Überweisung zurück.</p>
+        <div class="split-row">
+          <label>Personen inkl. dir<input id="split-people" type="number" min="2" max="30" value="2" inputmode="numeric"></label>
+          <button type="button" class="btn" id="split-equal">Gleich aufteilen</button>
+        </div>
+        <label>Mein Anteil (€)<input id="split-mine" inputmode="decimal" placeholder="0,00"></label>
+        <div id="split-shares"></div>
+        <button type="button" class="btn small" id="split-add">＋ Person</button>
+        <p id="split-hint" class="split-hint"></p>
+        <button type="button" class="link-danger" id="split-remove" hidden>Teilung aufheben</button>
+      </details>
+
       <div class="dialog-actions">
         <button type="button" class="btn" id="cancel-btn">Abbrechen</button>
         <button type="submit" class="btn primary">Speichern</button>

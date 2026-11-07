@@ -5,7 +5,7 @@ const STORE_KEY = "finanzen.v1";
 const DEFAULT_CATEGORIES = [
   "Gehalt & Einnahmen", "Wohnen", "Energie & Internet", "Lebensmittel", "Drogerie",
   "Essen gehen", "Mobilität", "Versicherungen", "Abos & Streaming", "Shopping",
-  "Gesundheit", "Bargeld", "Sparen & Investieren", "Steuern & Gebühren", "Umbuchung", "Sonstiges",
+  "Gesundheit", "Bargeld", "Sparen & Investieren", "Steuern & Gebühren", "Umbuchung", "Rückzahlung", "Sonstiges",
 ];
 
 function load() {
@@ -36,6 +36,7 @@ const ui = {
   listLimit: 200,
   editing: null,
   editType: "exp",
+  splitPrev: [],            // Anteile der Buchung vor dem Bearbeiten (für Verknüpfungen)
 };
 
 // ---------- Hilfen ---------------------------------------------------------
@@ -54,13 +55,17 @@ function inPeriod(t, p) {
 function periodLabel(p) {
   return p.mode === "year" ? String(p.y) : `${MONTHS[p.m - 1]} ${p.y}`;
 }
-// Umbuchungen (z. B. Girokonto -> PayPal) zählen weder als Einnahme noch als Ausgabe
-const counts = (t) => t.category !== "Umbuchung";
+// Umbuchungen (z. B. Girokonto -> PayPal) und Rückzahlungen von Freunden für eine
+// geteilte Rechnung zählen weder als Einnahme noch als Ausgabe
+const counts = (t) => t.category !== "Umbuchung" && t.category !== "Rückzahlung";
+// Bei einer geteilten Rechnung zählt nur der eigene Anteil als Ausgabe
+const eff = (t) => (t.split && t.amount < 0 ? -t.split.mine : t.amount);
 function sums(list) {
   let inc = 0, exp = 0;
   for (const t of list) {
     if (!counts(t)) continue;
-    if (t.amount >= 0) inc += t.amount; else exp -= t.amount;
+    const a = eff(t);
+    if (a >= 0) inc += a; else exp -= a;
   }
   return { inc, exp, bal: inc - exp };
 }
@@ -127,6 +132,7 @@ function renderOverview() {
     ? `Sparquote ${Math.round((s.bal / s.inc) * 100)} % · ${list.length} Buchungen`
     : `${list.length} Buchungen`;
   $("#empty-hint").hidden = db.transactions.length > 0;
+  renderOpen();
 
   renderTrend();
   renderCategories(list, p);
@@ -163,7 +169,8 @@ function renderTrend() {
   for (const t of db.transactions) {
     const b = byMonth.get(t.date.slice(0, 7));
     if (!b || !counts(t)) continue;
-    if (t.amount >= 0) b.inc += t.amount; else b.exp -= t.amount;
+    const a = eff(t);
+    if (a >= 0) b.inc += a; else b.exp -= a;
   }
   const W = 340, H = 170, L = 40, R = 4, T = 8, B = 22;
   const max = niceMax(Math.max(...[...byMonth.values()].flatMap((v) => [v.inc, v.exp])));
@@ -229,9 +236,9 @@ function compact(v) {
 function renderCategories(list, p) {
   const by = new Map();
   for (const t of list) {
-    if (t.amount >= 0 || !counts(t)) continue;
+    if (eff(t) >= 0 || !counts(t)) continue;
     const c = t.category || "Sonstiges";
-    by.set(c, (by.get(c) || 0) - t.amount);
+    by.set(c, (by.get(c) || 0) - eff(t));
   }
   const rows = [...by.entries()].sort((a, b) => b[1] - a[1]);
   const total = rows.reduce((a, r) => a + r[1], 0);
@@ -276,7 +283,7 @@ function renderList() {
   const monthSums = new Map();
   list.forEach((t) => {
     const k = t.date.slice(0, 7);
-    if (counts(t)) monthSums.set(k, (monthSums.get(k) || 0) + t.amount);
+    if (counts(t)) monthSums.set(k, (monthSums.get(k) || 0) + eff(t));
   });
   for (const t of shown) {
     const k = t.date.slice(0, 7);
@@ -290,7 +297,7 @@ function renderList() {
     html += `<button class="tx" data-id="${esc(t.id)}">
       <span class="tx-desc">${esc(t.description)}</span>
       <span class="tx-amt ${t.amount > 0 ? "pos" : ""}">${eur.format(t.amount)}</span>
-      <span class="tx-meta">${d} · ${esc(t.category || "Sonstiges")}${t.account ? " · " + esc(t.account) : ""}</span>
+      <span class="tx-meta">${d} · ${esc(t.category || "Sonstiges")}${t.account ? " · " + esc(t.account) : ""}${splitNote(t)}</span>
     </button>`;
   }
   if (curMonth) html += `</div>`;
@@ -315,11 +322,13 @@ function openEdit(tx) {
   f.applySimilar.checked = false;
   $("#apply-similar-wrap").hidden = !tx;
   $("#delete-btn").hidden = !tx;
+  resetSplitBox(tx);
   $("#edit-dialog").showModal();
 }
 function setEditType(type) {
   ui.editType = type;
   document.querySelectorAll(".type-seg button").forEach((b) => b.classList.toggle("on", b.dataset.type === type));
+  $("#split-box").hidden = type !== "exp";   // nur Ausgaben lassen sich teilen
 }
 function submitEdit(e) {
   e.preventDefault();
@@ -332,21 +341,227 @@ function submitEdit(e) {
     description: f.description.value.trim(),
     category: f.category.value,
   };
-  if (ui.editing) {
-    Object.assign(ui.editing, data);
+
+  // Rechnung teilen: Summe muss aufgehen, sonst nicht speichern
+  const shares = ui.editType === "exp" ? readShares().filter((sh) => sh.amount > 0 || sh.name) : [];
+  if (shares.length) {
+    const { diff } = splitDiff();
+    if (Math.abs(diff) >= 0.01 || shares.some((sh) => !sh.amount)) {
+      $("#split-box").open = true;
+      updateSplitHint();
+      $("#split-hint").classList.add("bad");
+      if (shares.some((sh) => !sh.amount)) $("#split-hint").textContent = "Bitte bei jeder Person einen Betrag eintragen.";
+      return;
+    }
+  }
+
+  let t = ui.editing;
+  if (t) {
+    Object.assign(t, data);
     if (f.applySimilar.checked) {
       const key = similarKey(data.description);
       if (key) {
         db.rules[key] = data.category;
-        db.transactions.forEach((t) => { if (similarKey(t.description) === key) t.category = data.category; });
+        db.transactions.forEach((x) => { if (similarKey(x.description) === key) x.category = data.category; });
       }
     }
   } else {
-    db.transactions.push({ ...data, id: "m" + Date.now().toString(36), source: "manuell", account: "" });
+    t = { ...data, id: "m" + Date.now().toString(36), source: "manuell", account: "" };
+    db.transactions.push(t);
   }
+
+  // Anteile übernehmen; Verknüpfungen zu Geldeingängen nur ändern, wo sich der Status ändert
+  const prev = new Map(ui.splitPrev.map((sh) => [sh.id, sh]));
+  const kept = new Set();
+  const messages = [];
+  const newShares = shares.map((sh, i) => {
+    const old = prev.get(sh.id);
+    const merged = { ...(old || {}), id: sh.id, name: sh.name || `Person ${i + 2}`, amount: sh.amount };
+    kept.add(sh.id);
+    if (!old || old.status !== sh.status || old.amount !== sh.amount) {
+      const msg = settleShare(t, merged, sh.status);
+      if (msg) messages.push(`${merged.name}: ${msg}`);
+    }
+    return merged;
+  });
+  for (const old of ui.splitPrev) if (!kept.has(old.id)) unlinkShare(old);
+  if (newShares.length) t.split = { mine: round2(Math.abs(parseAmount($("#split-mine").value) || 0)), shares: newShares };
+  else delete t.split;
+
   save();
   $("#edit-dialog").close();
   render();
+  if (messages.length) toast(messages.join("\n"));
+}
+
+// ---------- Rechnung teilen --------------------------------------------------
+// Eine Ausgabe kann ein Feld `split` tragen:
+//   { mine: 25.00, shares: [{ id, name, amount, status, settledDate, linkedTx, prevCategory }] }
+// status: "offen" | "bar" | "ueberweisung". Kommt das Geld per Überweisung, wird der
+// passende Geldeingang verknüpft und als "Rückzahlung" markiert (zählt nicht als Einnahme).
+const SHARE_STATUS = { offen: "offen", bar: "bar erhalten", ueberweisung: "per Überweisung erhalten" };
+const round2 = (v) => Math.round(v * 100) / 100;
+const fmtNum = (v) => v.toFixed(2).replace(".", ",");
+const fmtDate = (iso) => iso.split("-").reverse().join(".");
+const today = () => new Date().toISOString().slice(0, 10);
+const newShareId = () => "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+function addDays(iso, n) {
+  const d = new Date(iso + "T12:00:00");
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+function splitNote(t) {
+  if (!t.split || t.amount >= 0) return "";
+  const open = t.split.shares.filter((sh) => sh.status === "offen").length;
+  return ` · geteilt, mein Anteil ${eur.format(t.split.mine)}${open ? ` · ${open} offen` : ""}`;
+}
+
+function toast(msg) {
+  const el = document.createElement("div");
+  el.className = "toast";
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+// --- Geldeingang einer Rückzahlung zuordnen ---
+function findRepayment(t, sh) {
+  const used = new Set(db.transactions.flatMap((x) =>
+    x.split ? x.split.shares.map((s) => s.linkedTx).filter(Boolean) : []));
+  const first = sh.name.toLowerCase().split(/\s+/)[0];
+  const nameHit = (x) => (first.length >= 3 && x.description.toLowerCase().includes(first) ? 1 : 0);
+  return db.transactions
+    .filter((x) => x.amount > 0 && Math.abs(x.amount - sh.amount) < 0.005
+      && x.date >= t.date && x.date <= addDays(t.date, 90)
+      && !used.has(x.id) && x.category !== "Umbuchung")
+    .sort((a, b) => nameHit(b) - nameHit(a) || a.date.localeCompare(b.date))[0];
+}
+function linkShare(t, sh) {
+  const r = findRepayment(t, sh);
+  if (!r) return null;
+  sh.linkedTx = r.id;
+  sh.prevCategory = r.category;
+  r.category = "Rückzahlung";
+  sh.settledDate = r.date;
+  return r;
+}
+function unlinkShare(sh) {
+  if (!sh.linkedTx) return;
+  const r = db.transactions.find((x) => x.id === sh.linkedTx);
+  if (r && r.category === "Rückzahlung") r.category = sh.prevCategory || "Sonstiges";
+  delete sh.linkedTx;
+  delete sh.prevCategory;
+}
+// Nach einem Import: Überweisungen, die schon als erhalten markiert sind, zuordnen
+function autoLinkRepayments() {
+  let n = 0;
+  for (const t of db.transactions) {
+    if (!t.split) continue;
+    for (const sh of t.split.shares) {
+      if (sh.status === "ueberweisung" && !sh.linkedTx && linkShare(t, sh)) n++;
+    }
+  }
+  return n;
+}
+function settleShare(t, sh, status) {
+  unlinkShare(sh);
+  sh.status = status;
+  if (status === "offen") { delete sh.settledDate; return ""; }
+  sh.settledDate = today();
+  if (status !== "ueberweisung") return "";
+  const r = linkShare(t, sh);
+  return r
+    ? `Geldeingang vom ${fmtDate(r.date)} zugeordnet – zählt nicht als Einnahme.`
+    : "Noch kein passender Geldeingang da – wird beim nächsten Import automatisch zugeordnet.";
+}
+
+// --- Offene Beträge in der Übersicht ---
+function renderOpen() {
+  const items = [];
+  for (const t of db.transactions) {
+    if (t.split) for (const sh of t.split.shares) if (sh.status === "offen") items.push({ t, sh });
+  }
+  $("#open-card").hidden = !items.length;
+  if (!items.length) return;
+  items.sort((a, b) => a.t.date.localeCompare(b.t.date));
+  $("#open-total").textContent = eur.format(items.reduce((a, x) => a + x.sh.amount, 0));
+  $("#open-list").innerHTML = items.map(({ t, sh }) => `
+    <div class="open-item" data-t="${esc(t.id)}" data-s="${esc(sh.id)}">
+      <span class="open-who">${esc(sh.name)}</span>
+      <span class="open-amt">${eur.format(sh.amount)}</span>
+      <span class="open-meta">${fmtDate(t.date)} · ${esc(t.description)}</span>
+      <div class="open-actions">
+        <button class="btn" data-act="bar">Bar erhalten</button>
+        <button class="btn" data-act="ueberweisung">Überweisung erhalten</button>
+      </div>
+    </div>`).join("");
+}
+
+// --- Bereich im Bearbeiten-Dialog ---
+function editTotal() {
+  const v = parseAmount($("#edit-form").amount.value);
+  return Number.isFinite(v) ? round2(Math.abs(v)) : 0;
+}
+function renderShares(shares) {
+  $("#split-shares").innerHTML = shares.map((sh) => `
+    <div class="share" data-id="${esc(sh.id)}">
+      <input class="sh-name" placeholder="Name" value="${esc(sh.name || "")}" aria-label="Name">
+      <input class="sh-amt" inputmode="decimal" placeholder="0,00" value="${sh.amount ? fmtNum(sh.amount) : ""}" aria-label="Betrag">
+      <select class="sh-status" aria-label="Status">${Object.entries(SHARE_STATUS).map(([k, l]) =>
+        `<option value="${k}" ${(sh.status || "offen") === k ? "selected" : ""}>${l}</option>`).join("")}</select>
+      <button type="button" class="share-del">Entfernen</button>
+    </div>`).join("");
+  updateSplitHint();
+}
+function readShares() {
+  return [...document.querySelectorAll("#split-shares .share")].map((el) => ({
+    id: el.dataset.id,
+    name: el.querySelector(".sh-name").value.trim(),
+    amount: round2(Math.abs(parseAmount(el.querySelector(".sh-amt").value) || 0)),
+    status: el.querySelector(".sh-status").value,
+  }));
+}
+function splitDiff() {
+  const mine = round2(Math.abs(parseAmount($("#split-mine").value) || 0));
+  const others = readShares().reduce((a, sh) => a + sh.amount, 0);
+  return { total: editTotal(), mine, others: round2(others), diff: round2(editTotal() - mine - others) };
+}
+function updateSplitHint() {
+  const hint = $("#split-hint");
+  const shares = readShares();
+  $("#split-remove").hidden = !shares.length;
+  if (!shares.length) { hint.textContent = ""; hint.classList.remove("bad"); return; }
+  const { mine, others, diff } = splitDiff();
+  const open = shares.filter((sh) => sh.status === "offen").reduce((a, sh) => a + sh.amount, 0);
+  if (Math.abs(diff) >= 0.01) {
+    hint.textContent = diff > 0 ? `Es fehlen noch ${eur.format(diff)} bis zur Rechnungssumme.`
+      : `${eur.format(-diff)} mehr als die Rechnungssumme.`;
+    hint.classList.add("bad");
+  } else {
+    hint.textContent = `Ausgabe für dich: ${eur.format(mine)} · Freunde: ${eur.format(others)}` +
+      (open ? `, davon ${eur.format(open)} offen` : ", alles erhalten");
+    hint.classList.remove("bad");
+  }
+}
+function splitEqually() {
+  const total = editTotal();
+  const n = Math.max(2, Math.min(30, parseInt($("#split-people").value, 10) || 2));
+  if (!total) { $("#edit-form").amount.focus(); return; }
+  const per = Math.floor((total / n) * 100) / 100;
+  const old = readShares();
+  const shares = Array.from({ length: n - 1 }, (_, i) =>
+    ({ ...(old[i] || { id: newShareId(), name: "", status: "offen" }), amount: per }));
+  $("#split-mine").value = fmtNum(round2(total - per * (n - 1)));   // Rundungscent trägst du
+  renderShares(shares);
+}
+function resetSplitBox(tx) {
+  const split = tx && tx.split;
+  ui.splitPrev = split ? split.shares.map((sh) => ({ ...sh })) : [];
+  $("#split-box").open = !!split;
+  $("#split-mine").value = split ? fmtNum(split.mine) : "";
+  $("#split-people").value = split ? split.shares.length + 1 : 2;
+  renderShares(split ? split.shares : []);
 }
 
 // ---------- Import / Export ------------------------------------------------
@@ -399,15 +614,20 @@ function importTransactions(items) {
     };
     if (!/^\d{4}-\d{2}-\d{2}$/.test(t.date) || !Number.isFinite(t.amount)) { skipped++; continue; }
     if (existing.has(t.id)) { skipped++; continue; }
+    // geteilte Rechnung aus einem Backup übernehmen
+    if (raw.split && Array.isArray(raw.split.shares) && t.amount < 0) {
+      t.split = { mine: Number(raw.split.mine) || 0, shares: raw.split.shares.map((sh) => ({ ...sh })) };
+    }
     const learned = db.rules[similarKey(t.description)];
-    if (learned) t.category = learned;
+    if (learned && t.category !== "Rückzahlung") t.category = learned;
     if (!t.category) t.category = t.amount > 0 ? "Gehalt & Einnahmen" : "Sonstiges";
     db.transactions.push(t);
     existing.add(t.id);
     added++;
   }
+  const linked = autoLinkRepayments();
   save();
-  return { added, skipped };
+  return { added, skipped, linked };
 }
 
 async function handleImport(file) {
@@ -424,7 +644,8 @@ async function handleImport(file) {
     }
     if (!Array.isArray(items)) throw new Error("Keine Buchungen in der Datei gefunden.");
     const r = importTransactions(items);
-    out.textContent = `✓ ${r.added} neue Buchungen importiert` + (r.skipped ? `, ${r.skipped} übersprungen (schon vorhanden/ungültig).` : ".");
+    out.textContent = `✓ ${r.added} neue Buchungen importiert` + (r.skipped ? `, ${r.skipped} übersprungen (schon vorhanden/ungültig).` : ".") +
+      (r.linked ? ` ${r.linked} Rückzahlung(en) von Freunden zugeordnet.` : "");
     initPeriod();
     render();
   } catch (e) {
@@ -479,9 +700,43 @@ $("#list").addEventListener("click", (e) => {
 });
 document.querySelectorAll(".type-seg button").forEach((b) => b.addEventListener("click", () => setEditType(b.dataset.type)));
 $("#edit-form").addEventListener("submit", submitEdit);
+$("#split-equal").addEventListener("click", splitEqually);
+$("#split-add").addEventListener("click", () => {
+  const shares = readShares();
+  const { diff } = splitDiff();
+  shares.push({ id: newShareId(), name: "", amount: diff > 0 ? diff : 0, status: "offen" });
+  renderShares(shares);
+  $("#split-people").value = shares.length + 1;
+});
+$("#split-remove").addEventListener("click", () => {
+  $("#split-mine").value = "";
+  renderShares([]);
+});
+$("#split-box").addEventListener("input", updateSplitHint);
+$("#split-box").addEventListener("change", updateSplitHint);
+$("#split-shares").addEventListener("click", (e) => {
+  if (!e.target.closest(".share-del")) return;
+  e.target.closest(".share").remove();
+  $("#split-people").value = readShares().length + 1;
+  updateSplitHint();
+});
+$("#edit-form").amount.addEventListener("input", updateSplitHint);
+$("#open-list").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-act]");
+  if (!btn) return;
+  const item = btn.closest(".open-item");
+  const t = db.transactions.find((x) => x.id === item.dataset.t);
+  const sh = t && t.split && t.split.shares.find((x) => x.id === item.dataset.s);
+  if (!sh) return;
+  const msg = settleShare(t, sh, btn.dataset.act);
+  save();
+  render();
+  toast(msg || `${sh.name}: ${eur.format(sh.amount)} bar erhalten.`);
+});
 $("#cancel-btn").addEventListener("click", () => $("#edit-dialog").close());
 $("#delete-btn").addEventListener("click", () => {
   if (!ui.editing || !confirm("Buchung löschen?")) return;
+  if (ui.editing.split) ui.editing.split.shares.forEach(unlinkShare);
   db.transactions = db.transactions.filter((t) => t !== ui.editing);
   save(); $("#edit-dialog").close(); render();
 });
